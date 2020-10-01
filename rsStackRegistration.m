@@ -1,4 +1,4 @@
-%% setup
+%% Setup
 
 clear, clc
 
@@ -14,11 +14,11 @@ clear, clc
     %       please only execute the 'interactive' cell.
     %       'interactive' cells are ignored in 'fast track' mode, and vice-versa.
 
-    quantSpots = true;
+    quantSpots = false;
      % true: quantify spots
      % false: quantify diffuse signal
 
-    pathIn = '/scratch/RiffleShuffle/Stacks/Dataset_B_1.55_2.45_Downsized';
+    pathIn = '';
     % full path to _Downsized folder
 %///
 
@@ -32,9 +32,19 @@ end
 nImages = length(listfiles(pathIn,'C1.tif'));
 padFactor = 1.5;
 
+% Print out some info for the user
+fprintf([repmat('*',1,20) '\n'])
+fprintf('SELF REGISTRATION OF EXPERIMENTAL IMAGES\n')
+fprintf(['Selected path: ' strrep(pathIn,'\','\\') '\n'])
+fprintf('Detected %u images.\n',nImages)
+
 %% [interactive] automated vertical symmetry registration
 
 if interactive
+    
+fprintf('[interactive] Automatic vertical symmetry detection...')
+    
+% Initialization
 lI0 = cell(1,nImages);
 lI1 = cell(1,nImages);
 lI2 = cell(1,nImages);
@@ -42,12 +52,17 @@ lIQ = cell(1,nImages);
 lTform = cell(1,nImages);
 spots = cell(1,nImages);
 xyOffsets = cell(1,nImages);
+
+% Loop for each image in the dataset
 pfpb = pfpbStart(nImages);
 parfor i = 1:nImages
+    
+    % Load the contour probability image (*_C)
     I = imreadGrayscaleDouble([pathIn filesep sprintf('I%03d_C.png',i)]);
+    % Increase image size by padFactor padding with zeros at the borders
     [I,xOffset] = padLR(I,padFactor);
     [I,yOffset] = padTB(I,padFactor);
-    
+    % Offset image
     I1 = I;
     
     if quantSpots
@@ -55,24 +70,34 @@ parfor i = 1:nImages
     else
         xy = [1 1]; % dummy array
     end
+    % Adjust the x,y position of the spots to match the new offset image
     xy(:,1) = xy(:,1)+xOffset;
     xy(:,2) = xy(:,2)+yOffset;
     spots{i} = xy;
     xyOffsets{i} = [xOffset yOffset];
-    
+        
+    % Erosion as a "local minimum" filter 
     I = imerode(I,strel('disk',2,0));
+    % Zero out pixels below 50% of the image intensity range
     I = I.*(I > 0.5*max(I(:)));
     I = normalize(steerableDetector(im2double(I),4,10));
+    % Resize the image to 200px on the long edge
     f = 200/max(size(I));
-    I = fadeLR(imresize(I,f),0.25);
+    I = imresize(I,f);
+    % Fade to zero the left and right side of the image
+    I = fadeLR(I,0.25);
 
+    % Detect the angle of symmetry in this slice
     [angles, midPoints] = symmetryViaRegistration2D(I,'RegMethod','nxc','AngleSet',-30:6:30);
+    
+    % Select the strongest (first) guess at a symmetry angle and midpoints
+    mp = midPoints(:,1);
     ag = angles(1);
     if ag > pi/2
         ag = ag-pi;
     end
-    mp = midPoints(:,1);
-    d = sqrt(size(I,1)^2+size(I,2)^2);
+    
+    d = sqrt(size(I,1)^2+size(I,2)^2);  % length of the frame diagonal
     v = [cos(ag); sin(ag)];
     ps = [];
     for j = -d:d
@@ -115,16 +140,18 @@ parfor i = 1:nImages
     pfpbUpdate(pfpb);
 end
 
-%  save variables to later skip step above
+% Save variables to later skip step above
 save([pathOut filesep 'lTform.mat'],'lTform');
 save([pathOut filesep 'xyOffsets.mat'],'xyOffsets');
-disp('done with symmetry detection')
+fprintf(' done.\n')
 end
 
-%% [fast track] automated vertical symmetry registration
+%% [fast track] Automated vertical symmetry registration
 
 if ~interactive
-disp('vertical symmetry registration')
+
+fprintf('[Fast Track] Automatic vertical symmetry detection...')
+    
 load([pathOut filesep 'lTform.mat']);
 load([pathOut filesep 'xyOffsets.mat']);
 lI0 = cell(1,nImages);
@@ -162,21 +189,25 @@ for i = 1:nImages
     xy(:,2) = xy(:,2)+xyOffsets{i}(2);
     spots{i} = xy;
 end
+fprintf(' done.\n')
+
 end
 
-%% transform spots
+%% Transform spots
 
-disp('transform spots')
+fprintf('Transforming spots (vertical symmetry)...')
 spots2 = cell(1,nImages);
 for i = 1:nImages
     disp(i)
     xy = transformSpots(spots{i},lTform{i});
     spots2{i} = xy;
 end
+fprintf(' done.\n')
+
 
 %% create stacks
 
-disp('create stacks')
+fprintf('Creating image stacks... (000/000)')
 szs = zeros(nImages,2);
 for i = 1:nImages
     szs(i,:) = size(lI1{i});
@@ -189,7 +220,11 @@ S2 = zeros(s12(1),s12(2),nImages);
 SQ = zeros(s12(1),s12(2),nImages);
 
 for i = 1:nImages
-    disp(i)
+    
+    % print a progress on screen
+    fprintf(repmat('\b',1,9))
+    fprintf('(%03u/%03u)',i,nImages)
+    
     r0 = round(s12(1)/2-size(lI0{i},1)/2);
     c0 = round(s12(2)/2-size(lI0{i},2)/2);
     S0(r0+1:r0+size(lI0{i},1),c0+1:c0+size(lI0{i},2),i) = lI0{i};
@@ -201,6 +236,8 @@ for i = 1:nImages
     xy(:,2) = xy(:,2)+r0+1;
     spots2{i} = xy;
 end
+
+fprintf(' done.\n')
 
 %% check if spots were transformed correctly
 
@@ -220,7 +257,7 @@ end
 %% visualize (S0: C1, S1: C, S2: M, SQ: Q)
 
 if interactive
-timeLapseViewTool(S1);
+    timeLapseViewTool(S0);
 end
 
 %% [interactive] check/adjust symmetry (do not execute more than once)
@@ -233,7 +270,7 @@ maxSink = 100;
 %\\\SET
     % indices of images that need the axis of symmetry to be fixed; multiple indices separated by space
     % run with imIndices = [] if no adjustment is needed (to setup spots3 variable)
-    imIndices = [3];
+    imIndices = [1:5];
 %///
 
 spots3 = cell(1,nImages);
@@ -309,7 +346,7 @@ maxSink = 100;
 %\\\SET
     % indices of images that need each half to be fixed independently; multiple indices separated by space
     % run with imIndices = [] if no adjustment is needed (to setup spots4 variable)
-    imIndices = [3];
+    imIndices = [1:10];
 %///
 
 spots4 = cell(1,nImages);

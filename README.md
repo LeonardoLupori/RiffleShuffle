@@ -19,7 +19,7 @@ A Supervised, **Symmetry-Driven**, GUI Toolkit for Mouse Brain Stack Registratio
 
 2. From MATLAB, navigate in your local folder and add it (with subfolders) to the path.
 
-3. **All done!**. Now you can start to use the Riffle Shuffle pipeline.
+3. **All done!** Now you can start to use the Riffle Shuffle pipeline.
 
 
 ## Pipeline:
@@ -53,8 +53,7 @@ Developed by Marcelo Cicconet & Daniel R. Hochbaum
 -----
 ## Sample Data
 
-Some sample data is available for demo purposes at
-https://www.dropbox.com/s/wta56buh23nvz4c/RiffleShuffle.zip?dl=0
+Some sample data is available for demo purposes [here](https://www.dropbox.com/s/wta56buh23nvz4c/RiffleShuffle.zip?dl=0)
 
 It contains 3 folders:
 
@@ -65,8 +64,8 @@ It contains 3 folders:
     Furthermore, it's very likely that the user's preprocessing will be different.
     
 * **SupportFiles**  
-    Contains Atlas data used in rsPlaneAssignment.
-    This was obtained form https://mouse.brain-map.org/
+    Contains Atlas data used in rsPlaneAssignment. 
+    This was obtained form the [Allen Brain Atlas](https://mouse.brain-map.org/)
 
 * **DataForPC**  
     Sample data for rsTrainContour and rsTrainMask.

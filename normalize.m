@@ -5,11 +5,11 @@ function J = normalize(I)
 %
 % Inputs:
 %    I - N-D Array 
-
 %
 % Outputs:
 %    J - N-D Array with values in the range [0 1]
 %
+
     J = I;
     minJ = min(J(:));
     maxJ = max(J(:));
