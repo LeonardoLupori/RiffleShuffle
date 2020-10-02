@@ -1,4 +1,4 @@
-%% Setup 
+%% [SET] Setup 
 
 clear, clc
 
@@ -37,7 +37,6 @@ fprintf([repmat('*',1,20) '\n'])
 fprintf('SELF REGISTRATION OF EXPERIMENTAL IMAGES\n')
 fprintf(['Selected path: ' strrep(pathIn,'\','\\') '\n'])
 fprintf('Detected %u images.\n',nImages)
-
 
 %% [interactive] automated vertical symmetry registration 
 
@@ -260,7 +259,7 @@ if interactive
     close all
 end
 
-%% Visualize intermediate results
+%% [SET] Visualize intermediate results
 % S0: C1 - original channel for contours estimation
 % S1: C - contour probability image
 % S2: M - slice mask image
@@ -270,7 +269,7 @@ if interactive
     timeLapseViewTool(SQ);
 end
 
-%% [interactive] Check/adjust symmetry (do not execute more than once)
+%% [SET] [interactive] Check/adjust symmetry (do not execute more than once)
 % Run with imIndices = [] if no adjustment is needed (to setup spots3 variable)
 
 if interactive
@@ -281,12 +280,14 @@ maxSink = 100;
     % indices of images that need the axis of symmetry to be fixed; multiple indices separated by space
     % run with imIndices = [] if no adjustment is needed (to setup spots3 variable)
     % run with imIndices = 'all' if you want to process all the frames
-    imIndices = [1:5];
+    imIndices = [1:3];
 %///
 
 if ischar(imIndices) && strcmpi(imIndices,'all')
     imIndices = 1:nImages;
 end
+
+fprintf('[interactive] Adjusting symmetry axes...')
 
 % Process spots coordinates
 spots3 = cell(1,nImages);
@@ -309,17 +310,19 @@ for i = imIndices
     end
 end
 save([pathOut filesep 'tforms23.mat'],'tforms23');
+fprintf(' done.\n')
 end
 
 %% [fast track] Check/adjust symmetry (do not execute more than once)
 
 if ~interactive
-disp('adjust symmetry')
+    
+fprintf('[fast track] Adjusting symmetry axes...')
+
 load([pathOut filesep 'tforms23.mat'])
 imIndices = [];
 spots3 = cell(1,nImages);
 for i = 1:nImages
-    disp(i)
     tform = tforms23{i};
     spots3{i} = spots2{i};
     if ~isempty(tform)
@@ -331,6 +334,7 @@ for i = 1:nImages
         imIndices = [imIndices i];
     end
 end
+fprintf(' done.\n')
 end
 
 %% Check if spots were transformed correctly
@@ -346,7 +350,7 @@ if interactive
     close all
 end
 
-%% Visualize intermediate results
+%% [SET] Visualize intermediate results
 % S0: C1 - original channel for contours estimation
 % S1: C - contour probability image
 % S2: M - slice mask image
@@ -356,7 +360,7 @@ if interactive
 timeLapseViewTool(S1);
 end
 
-%% [interactive] Check/adjust symmetry on each left or right half (do not execute more than once)
+%% [SET] [interactive] Check/adjust symmetry on each left or right half (do not execute more than once)
 % run with imIndices = [] if no adjustment is needed (to setup spots4 variable)
 
 if interactive
@@ -374,14 +378,18 @@ if ischar(imIndices) && strcmpi(imIndices,'all')
     imIndices = 1:nImages;
 end
 
+fprintf('[interactive] Adjusting symmetry on each half...')
+
+% Process spots coordinates
 spots4 = cell(1,nImages);
 tforms34 = cell(1,nImages);
 for i = 1:nImages
     spots4{i} = spots3{i};
     tforms34{i} = [];
 end
+
+% Process images
 for i = imIndices
-    disp(i)
     T = symmetryTool2(imadjust(S0(:,:,i)),'MaxShift',maxShift,'MaxSink',maxSink);
     if T.DoneButtonPushed
         S0(:,:,i) = symmetryTool2.staticApplyTforms(T.MidC,T.Tform{1},T.Tform{2},S0(:,:,i));
@@ -394,17 +402,19 @@ for i = imIndices
     end
 end
 save([pathOut filesep 'tforms34.mat'],'tforms34');
+fprintf(' done.\n')
 end
 
 %% [fast track] check/adjust symmetry on each left or right half (do not execute more than once)
 
 if ~interactive
-disp('adjust symmetry on each half')
+    
+fprintf('[fast track] Adjusting symmetry on each half...')
+
 load([pathOut filesep 'tforms34.mat']);
 spots4 = cell(1,nImages);
 imIndices = [];
 for i = 1:nImages
-    disp(i)
     tform = tforms34{i};
     spots4{i} = spots3{i};
     if ~isempty(tform)
@@ -416,13 +426,13 @@ for i = 1:nImages
         imIndices = [imIndices i];
     end
 end
+fprintf(' done.')
 end
 
 %% Check if spots were transformed correctly
 
 if interactive
     for i = imIndices
-        disp(i)
         I = imadjust(SQ(:,:,i));
         xy = spots4{i};
         imshow(I), hold on
@@ -435,13 +445,16 @@ end
 %% [interactive] pairwise vertical registration
 
 if interactive
+    
+fprintf('[interactive] Pairwise vertical registration...')
+    
 sI0 = cell(1,nImages);
 sI1 = cell(1,nImages);
 sI2 = cell(1,nImages);
 sIQ = cell(1,nImages);
 rI1 = cell(1,nImages);
+
 for i = 1:nImages
-    disp(i)
     sI0{i} = S0(:,:,i);
     sI1{i} = S1(:,:,i);
     sI2{i} = S2(:,:,i);
@@ -449,9 +462,9 @@ for i = 1:nImages
     rI1{i} = imresize(S1(:,:,i),0.1);
 end
 
+% interactively adjust vertical registration
 tforms = cell(1,nImages-1);
 for i = 1:nImages-1
-    disp(i)
     I0 = rI1{i};
     I1 = rI1{i+1};
     [tform,cs] = vertRegister(I1,I0,10);
@@ -461,14 +474,18 @@ for i = 1:nImages-1
     imshowpair(I0,imwarp0(I1,tform0))
     pause(0.1)
 end
+
 close all
 save([pathOut filesep 'tforms.mat'],'tforms');
+fprintf(' done.\n')
 end
 
 %% [fast track] pairwise vertical registration
 
 if ~interactive
-disp('pairwise vertical registration')
+
+fprintf('[fast track] Pairwise vertical registration...')
+    
 load([pathOut filesep 'tforms.mat']);
 sI0 = cell(1,nImages);
 sI1 = cell(1,nImages);
@@ -476,18 +493,19 @@ sI2 = cell(1,nImages);
 sIQ = cell(1,nImages);
 rI1 = cell(1,nImages);
 for i = 1:nImages
-    disp(i)
     sI0{i} = S0(:,:,i);
     sI1{i} = S1(:,:,i);
     sI2{i} = S2(:,:,i);
     sIQ{i} = SQ(:,:,i);
     rI1{i} = imresize(S1(:,:,i),0.1);
 end
+fprintf(' done.\n')
 end
 
 %% Global vertical registration
 
 fprintf('Global vertical registration...')
+
 anchor = round(nImages/2);
 TS0 = zeros(size(S0));
 TS1 = zeros(size(S1));
@@ -496,7 +514,6 @@ TSQ = zeros(size(SQ));
 
 spots5 = cell(1,nImages);
 for i = 1:nImages
-    disp(i)
     [M,~,tform] = imWarpToAnchor(i,anchor,sI0,tforms);
     TS0(:,:,i) = M;
     if exist('spots4','var')
@@ -519,7 +536,6 @@ fprintf(' end.\n')
 
 if interactive
 for i = 1:nImages
-    disp(i)
     I = imadjust(TSQ(:,:,i));
     xy = spots5{i};
     imshow(I), hold on
@@ -529,7 +545,7 @@ end
 close all
 end
 
-%% Visualize intermediate results
+%% [SET] Visualize intermediate results
 % S0: C1 - original channel for contours estimation
 % S1: C - contour probability image
 % S2: M - slice mask image
@@ -539,7 +555,7 @@ if interactive
 timeLapseViewTool(TS1);
 end
 
-%% visualize all channels per index
+%% [SET] Visualize all channels per index
 
 if interactive
     
@@ -555,7 +571,7 @@ stack = cat(3,stack,imadjust(TSQ(:,:,index)));
 tlvt(stack);
 end
 
-%% [interactive] adjust (if needed; when done, re-do 'global vertical registration')
+%% [SET] [interactive] adjust (if needed; when done, re-do 'global vertical registration')
 
 if interactive
 
@@ -564,16 +580,19 @@ if interactive
     % for each index, adjusts corresponding image w.r.t. previous image
 %///
 
+fprintf('[interactive] Manually adjusting global vertical registration...')
+
 for i = imIndices
     T = verticalRegistrationTool(imadjust(S1(:,:,i)),imadjust(S1(:,:,i-1)),'MaxShift',300);
     tforms{i-1} = T.Tform;
 end
 save([pathOut filesep 'tforms.mat'],'tforms');
+fprintf(' done.\n')
 end
 
-%% write
+%% Write images, tables as output
 
-disp('write images, tables')
+fprintf('Saving: images, tables...')
 
 pfpb = pfpbStart(nImages);
 parfor i = 1:nImages
@@ -586,7 +605,9 @@ parfor i = 1:nImages
     writetable(array2table(xy,'VariableNames',{'x','y'}),[pathOut filesep sprintf('I%03d.csv',i)]);
 end
 
-%% check
+fprintf(' done.\n')
+
+%% [SET] Check selected planes
 
 if interactive
 
@@ -607,14 +628,14 @@ stack(:,:,1) = imadjust(I); stack(:,:,2) = imadjust(Q); stack(:,:,3) = C; stack(
 tlvt(stack)
 end
 
-%% write volume for registration to Allen Institute atlas
+%% [SET] Write TIFF stack volume for registration to Allen Institute atlas
 
-disp('write volume')
+fprintf('Writing TIFF self-aligned volume...')
+
 p = pathOut;
 l = listfiles(p,'C.png');
 
 for i = 1:length(l)
-    disp(i)
     I = im2double(imread(l{i}));
     
 %\\\SET
@@ -634,7 +655,10 @@ for i = 1:length(l)
 end
 
 volumeWrite(uint8(255*V),[p '.tif']);
-disp('done')
+fprintf(' done.\n')
 if interactive
 tlvt(V)
 end
+
+fprintf('DONE SELF REGISTRATION OF EXPERIMENTAL IMAGES\n')
+fprintf([repmat('*',1,20) '\n'])

@@ -1,4 +1,4 @@
-%%
+%% [SET] SETUP
 
 clear, clc
 
@@ -14,7 +14,7 @@ clear, clc
     % false: fast track (run by calling rsPlaneAssignment in Matlab's prompt)
 %///
 
-%% read, resize template
+%% [SET] Read, resize template
 
 disp('read, resize template')
 
@@ -32,7 +32,7 @@ if interactive
 tlvt(F)
 end
 
-%% read volume to register
+%% [SET] Read volume to register
 
 disp('read volume to register')
 
@@ -52,7 +52,7 @@ end
 % bregmas increase from back to front
 % template has planes from front to back
 
-%% read bregma values; crop template
+%% [SET] Read bregma values; crop template
 
 disp('read bregma values; crop template')
 % template
@@ -104,7 +104,7 @@ imtool(subF(:,:,round(size(subF,3)/2)))
 imtool(M(:,:,round(size(M,3)/2)))
 end
 
-%% re-scale template to match scale of data
+%% [SET] Re-scale template to match scale of data
 
 disp('re-scale template to match scale of data')
 
@@ -122,7 +122,7 @@ imtool(RsubF(:,:,round(size(RsubF,3)/2)))
 imtool(M(:,:,round(size(M,3)/2)))
 end
 
-%% optimal plane assignment
+%% [SET] Optimal plane assignment
 
 disp('optimal plane assignment')
 imSubSeq = stack2list(M);
@@ -381,7 +381,7 @@ end
 tlvt([TI3 J3])
 end
 
-%% read points / transform (similarity)
+%% [SET] Read points / transform (similarity)
 
 disp('read points / transform (similarity)')
 txys = cell(1,nImages);
@@ -411,7 +411,7 @@ for i = 1:nImages
 end
 close all
 
-%% transform points / masks (non-linear)
+%% Transform points / masks (non-linear)
 
 disp('transform points / masks / quant images (non-linear)')
 % figureQSS
@@ -465,7 +465,7 @@ for i = 1:nImages
 end
 close all
 
-%% read / crop annotations / re-scale / convert to list
+%% [SET] read / crop annotations / re-scale / convert to list
 
 disp('read / crop annotations / re-scale / convert to list')
 
@@ -511,7 +511,7 @@ pcpStack = list2stack(pcp);
 masksStack = imopen(list2stack(ttMasks) > 0,strel('sphere',1)); % masks from data, not template
 close all
 
-%% count
+%% [SET] Count
 
 disp('count')
 
@@ -558,7 +558,7 @@ end
 path = [imFolder sprintf('_Quant_%s.csv',qType)];
 writetable(T,path);
 
-%% visualize quantization
+%% [SET] Visualize quantization
 
 disp('visualize quantization')
 

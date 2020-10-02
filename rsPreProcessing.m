@@ -1,4 +1,4 @@
-%% SETUP
+%% [SET] SETUP
 
 clear, clc
 
@@ -21,8 +21,7 @@ l2 = listfiles(pathIn,'_C2.tif');   % Second channel (quantification)
 load(pathModelC);
 load(pathModelM);
 
-
-%% Measure a spot - for automatic spot detection
+%% [SET] Measure a spot - for automatic spot detection
 
 %\\\SET
     % index of image to use to test spot parameters
@@ -33,8 +32,7 @@ I2 = imread(l2{i});
 J2 = imresize(I2,0.5);
 spotMeasureTool(normalize(im2double(J2)));
 
-
-%% Test spot detection parameters (no need to run if not quantifying spots)
+%% [SET] Test spot detection parameters (no need to run if not quantifying spots)
 
 %\\\SET
     % index of image to use to test spot detection
@@ -71,7 +69,6 @@ c = c/5;
 
 imshow(imadjust(J2)), hold on
 plot(c,r,'o'), hold off
-
 
 %% Downsizes images, detects spots, writes to file
 
@@ -139,7 +136,6 @@ parfor i = 1:length(l1)
     
     pfpbUpdate(pfpb);
 end
-
 
 %% Check saved files
 % For each slice shows images of: 
