@@ -16,8 +16,8 @@ clear, clc
     quantSpots = true; 
 %///
 
-l1 = listfiles(pathIn,'_C1.tif');   % First channel
-l2 = listfiles(pathIn,'_C2.tif');   % Second channel
+l1 = listfiles(pathIn,'_C1.tif');   % First channel (contour extimation)
+l2 = listfiles(pathIn,'_C2.tif');   % Second channel (quantification)
 load(pathModelC);
 load(pathModelM);
 

@@ -1,4 +1,4 @@
-%% Setup
+%% Setup 
 
 clear, clc
 
@@ -18,7 +18,7 @@ clear, clc
      % true: quantify spots
      % false: quantify diffuse signal
 
-    pathIn = '';
+    pathIn = 'C:\Users\Leonardo\Documents\MATLAB\wholeBrainPNN\RiffleShuffle_exampleDATA\Stacks\Dataset_B_1.55_2.45_Downsized';
     % full path to _Downsized folder
 %///
 
@@ -38,7 +38,8 @@ fprintf('SELF REGISTRATION OF EXPERIMENTAL IMAGES\n')
 fprintf(['Selected path: ' strrep(pathIn,'\','\\') '\n'])
 fprintf('Detected %u images.\n',nImages)
 
-%% [interactive] automated vertical symmetry registration
+
+%% [interactive] automated vertical symmetry registration 
 
 if interactive
     
@@ -117,25 +118,29 @@ parfor i = 1:nImages
     T4 = [1/f*eye(2) [0; 0]; [0 0 1]]';
     tform = affine2d((T4*T3*T2*R*T1*T0)');
     
-    TI1 = imwarp(I1,tform,'OutputView',imref2d(size(I1)));
-    
+    % Channel for contour estimation
     I0 = imreadGrayscaleDouble([pathIn filesep sprintf('I%03d_C1.tif',i)]);
     I0 = padTB(padLR(I0,padFactor),padFactor);
     TI0 = imwarp(I0,tform,'OutputView',imref2d(size(I1)));
     
+    % Image for contour probability mask
+    TI1 = imwarp(I1,tform,'OutputView',imref2d(size(I1)));
+    
+    % Image of the slice mask
     I2 = imreadGrayscaleDouble([pathIn filesep sprintf('I%03d_M.png',i)]);
     I2 = padTB(padLR(I2,padFactor),padFactor);
     TI2 = imwarp(I2,tform,'OutputView',imref2d(size(I1)));
     
+    % Channel for quantification
     IQ = imreadGrayscaleDouble([pathIn filesep sprintf('I%03d_CQ.tif',i)]);
     IQ = padTB(padLR(IQ,padFactor),padFactor);
     TIQ = imwarp(IQ,tform,'OutputView',imref2d(size(I1)));
     
-    lI0{i} = TI0;
-    lI1{i} = TI1;
-    lI2{i} = TI2;
-    lIQ{i} = TIQ;
-    lTform{i} = tform;
+    lI0{i} = TI0;       % original channel for the contours
+    lI1{i} = TI1;       % contour probability image
+    lI2{i} = TI2;       % slice mask image
+    lIQ{i} = TIQ;       % original channel for quantification
+    lTform{i} = tform;  % tranform obj
 
     pfpbUpdate(pfpb);
 end
@@ -146,7 +151,7 @@ save([pathOut filesep 'xyOffsets.mat'],'xyOffsets');
 fprintf(' done.\n')
 end
 
-%% [fast track] Automated vertical symmetry registration
+%% [fast track] Automated vertical symmetry registration 
 
 if ~interactive
 
@@ -160,7 +165,7 @@ lI2 = cell(1,nImages);
 lIQ = cell(1,nImages);
 spots = cell(1,nImages);
 for i = 1:nImages
-    disp(i)
+    fprintf('\tprocessing frame (%u/%u)...',i,nImages)
 
     tform = lTform{i};
     
@@ -188,31 +193,34 @@ for i = 1:nImages
     xy(:,1) = xy(:,1)+xyOffsets{i}(1);
     xy(:,2) = xy(:,2)+xyOffsets{i}(2);
     spots{i} = xy;
+    fprintf(' done.\n')
 end
 fprintf(' done.\n')
 
 end
 
-%% Transform spots
+%% Transform spots 
 
 fprintf('Transforming spots (vertical symmetry)...')
 spots2 = cell(1,nImages);
 for i = 1:nImages
-    disp(i)
     xy = transformSpots(spots{i},lTform{i});
     spots2{i} = xy;
 end
 fprintf(' done.\n')
 
+%% Create stacks
+% Take all the images processed until now and merge them in a single 3D
+% stack. Images might have different width and height, so blank pixels are
+% added to compensate.
 
-%% create stacks
-
-fprintf('Creating image stacks... (000/000)')
+fprintf('Creating image stacks...')
 szs = zeros(nImages,2);
 for i = 1:nImages
     szs(i,:) = size(lI1{i});
 end
 
+% Preallocate 3D matrix 10 pixels larger than the max dimensions
 s12 = max(szs)+10;
 S0 = zeros(s12(1),s12(2),nImages);
 S1 = zeros(s12(1),s12(2),nImages);
@@ -221,16 +229,15 @@ SQ = zeros(s12(1),s12(2),nImages);
 
 for i = 1:nImages
     
-    % print a progress on screen
-    fprintf(repmat('\b',1,9))
-    fprintf('(%03u/%03u)',i,nImages)
-    
+    % put each image in the center of the stack
     r0 = round(s12(1)/2-size(lI0{i},1)/2);
     c0 = round(s12(2)/2-size(lI0{i},2)/2);
     S0(r0+1:r0+size(lI0{i},1),c0+1:c0+size(lI0{i},2),i) = lI0{i};
     S1(r0+1:r0+size(lI0{i},1),c0+1:c0+size(lI0{i},2),i) = lI1{i};
     S2(r0+1:r0+size(lI0{i},1),c0+1:c0+size(lI0{i},2),i) = lI2{i};
     SQ(r0+1:r0+size(lI0{i},1),c0+1:c0+size(lI0{i},2),i) = lIQ{i};
+    
+    % translate the spots as well
     xy = spots2{i};
     xy(:,1) = xy(:,1)+c0+1;
     xy(:,2) = xy(:,2)+r0+1;
@@ -239,28 +246,31 @@ end
 
 fprintf(' done.\n')
 
-%% check if spots were transformed correctly
+%% Check if spots were transformed correctly
 
 if interactive
-for i = 1:nImages
-    disp(i)
-    I = imadjust(SQ(:,:,i));
-    xy = spots2{i};
-    imshow(I), hold on
-    plot(xy(:,1),xy(:,2),'o'), hold off
-%     pause
-    pause(0.5)
-end
-close all
+    for i = 1:nImages
+        I = imadjust(SQ(:,:,i));
+        xy = spots2{i};
+        imshow(I), hold on
+        plot(xy(:,1),xy(:,2),'o'), hold off
+        %     pause
+        pause(1)
+    end
+    close all
 end
 
-%% visualize (S0: C1, S1: C, S2: M, SQ: Q)
+%% Visualize intermediate results
+% S0: C1 - original channel for contours estimation
+% S1: C - contour probability image
+% S2: M - slice mask image
+% SQ: Q - original channel for quantification
 
 if interactive
-    timeLapseViewTool(S0);
+    timeLapseViewTool(SQ);
 end
 
-%% [interactive] check/adjust symmetry (do not execute more than once)
+%% [interactive] Check/adjust symmetry (do not execute more than once)
 % run with imIndices = [] if no adjustment is needed (to setup spots3 variable)
 
 if interactive
@@ -270,17 +280,24 @@ maxSink = 100;
 %\\\SET
     % indices of images that need the axis of symmetry to be fixed; multiple indices separated by space
     % run with imIndices = [] if no adjustment is needed (to setup spots3 variable)
+    % run with imIndices = 'all' if you want to process all the frames
     imIndices = [1:5];
 %///
 
+if ischar(imIndices) && strcmpi(imIndices,'all')
+    imIndices = 1:nImages;
+end
+
+% Process spots coordinates
 spots3 = cell(1,nImages);
 tforms23 = cell(1,nImages);
 for i = 1:nImages
     spots3{i} = spots2{i};
     tforms23{i} = [];
 end
+
+% Process images
 for i = imIndices
-    disp(i)
     T = symmetryTool(imadjust(S0(:,:,i)),'MaxShift',maxShift,'MaxSink',maxSink);
     if T.DoneButtonPushed
         S0(:,:,i) = imwarp(S0(:,:,i),T.Tform,'OutputView',imref2d(size(S0(:,:,i))));
@@ -294,7 +311,7 @@ end
 save([pathOut filesep 'tforms23.mat'],'tforms23');
 end
 
-%% [fast track] check/adjust symmetry (do not execute more than once)
+%% [fast track] Check/adjust symmetry (do not execute more than once)
 
 if ~interactive
 disp('adjust symmetry')
@@ -316,27 +333,30 @@ for i = 1:nImages
 end
 end
 
-%% check if spots were transformed correctly
+%% Check if spots were transformed correctly
 
 if interactive
-for i = imIndices
-    disp(i)
-    I = imadjust(SQ(:,:,i));
-    xy = spots3{i};
-    imshow(I), hold on
-    plot(xy(:,1),xy(:,2),'o'), hold off
-    pause
-end
-close all
+    for i = imIndices
+        I = imadjust(SQ(:,:,i));
+        xy = spots3{i};
+        imshow(I), hold on
+        plot(xy(:,1),xy(:,2),'o'), hold off
+        pause(1)
+    end
+    close all
 end
 
-%% visualize (S0: C1, S1: C, S2: M, SQ: Q)
+%% Visualize intermediate results
+% S0: C1 - original channel for contours estimation
+% S1: C - contour probability image
+% S2: M - slice mask image
+% SQ: Q - original channel for quantification
 
 if interactive
 timeLapseViewTool(S1);
 end
 
-%% [interactive] check/adjust symmetry on each left or right half (do not execute more than once)
+%% [interactive] Check/adjust symmetry on each left or right half (do not execute more than once)
 % run with imIndices = [] if no adjustment is needed (to setup spots4 variable)
 
 if interactive
@@ -346,8 +366,13 @@ maxSink = 100;
 %\\\SET
     % indices of images that need each half to be fixed independently; multiple indices separated by space
     % run with imIndices = [] if no adjustment is needed (to setup spots4 variable)
+    % run with imIndices = 'all' if you want to process all the frames
     imIndices = [1:10];
 %///
+
+if ischar(imIndices) && strcmpi(imIndices,'all')
+    imIndices = 1:nImages;
+end
 
 spots4 = cell(1,nImages);
 tforms34 = cell(1,nImages);
@@ -393,18 +418,18 @@ for i = 1:nImages
 end
 end
 
-%% check if spots were transformed correctly
+%% Check if spots were transformed correctly
 
 if interactive
-for i = imIndices
-    disp(i)
-    I = imadjust(SQ(:,:,i));
-    xy = spots4{i};
-    imshow(I), hold on
-    plot(xy(:,1),xy(:,2),'o'), hold off
-    pause
-end
-close all
+    for i = imIndices
+        disp(i)
+        I = imadjust(SQ(:,:,i));
+        xy = spots4{i};
+        imshow(I), hold on
+        plot(xy(:,1),xy(:,2),'o'), hold off
+        pause
+    end
+    close all
 end
 
 %% [interactive] pairwise vertical registration
@@ -460,9 +485,9 @@ for i = 1:nImages
 end
 end
 
-%% global vertical registration
+%% Global vertical registration
 
-disp('global vertical registration')
+fprintf('Global vertical registration...')
 anchor = round(nImages/2);
 TS0 = zeros(size(S0));
 TS1 = zeros(size(S1));
@@ -488,9 +513,9 @@ for i = 1:nImages
     M = imWarpToAnchor(i,anchor,sIQ,tforms);
     TSQ(:,:,i) = M;
 end
+fprintf(' end.\n')
 
-
-%% check if spots were transformed correctly
+%% Check if spots were transformed correctly
 
 if interactive
 for i = 1:nImages
@@ -504,7 +529,11 @@ end
 close all
 end
 
-%% visualize (S0: C1, S1: C, S2: M, SQ: Q)
+%% Visualize intermediate results
+% S0: C1 - original channel for contours estimation
+% S1: C - contour probability image
+% S2: M - slice mask image
+% SQ: Q - original channel for quantification
 
 if interactive
 timeLapseViewTool(TS1);
