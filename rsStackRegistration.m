@@ -271,7 +271,7 @@ if interactive
 end
 
 %% [interactive] Check/adjust symmetry (do not execute more than once)
-% run with imIndices = [] if no adjustment is needed (to setup spots3 variable)
+% Run with imIndices = [] if no adjustment is needed (to setup spots3 variable)
 
 if interactive
 maxShift = 500;
