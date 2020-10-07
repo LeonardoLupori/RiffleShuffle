@@ -16,6 +16,12 @@ clear, clc
     quantSpots = true; 
 %///
 
+fprintf([repmat('*',1,20) '\n'])
+fprintf('PRE PROCESSING OF EXPERIMENTAL IMAGES\n')
+fprintf(['Raw images path: ' strrep(pathIn,'\','\\') '\n'])
+fprintf(['Contour model (Random Forest) path: ' strrep(pathModelC,'\','\\') '\n'])
+fprintf(['Mask model (Random Forest) path: ' strrep(pathModelM,'\','\\') '\n'])
+
 l1 = listfiles(pathIn,'_C1.tif');   % First channel (contour extimation)
 l2 = listfiles(pathIn,'_C2.tif');   % Second channel (quantification)
 load(pathModelC);

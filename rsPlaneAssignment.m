@@ -14,9 +14,7 @@ clear, clc
     % false: fast track (run by calling rsPlaneAssignment in Matlab's prompt)
 %///
 
-%% [SET] Read, resize template
-
-disp('read, resize template')
+%% [SET] Read and resize the Allen Institute template
 
 %\\\SET
     path = '/scratch/RiffleShuffle/SupportFiles/template.tif';
@@ -26,15 +24,21 @@ disp('read, resize template')
     % downsizing in z makes pairwise assignment faster
 %///
 
+fprintf([repmat('*',1,20) '\n'])
+fprintf('IMAGE ASSIGNMENT TO ALLEN BRAIN ATLAS TEMPLATE\n')
+
+fprintf(['Template location: ' strrep(path,'\','\\') '\n'])
+fprintf('Reading and resizing Allen institute template...')
+
 F = volumeRead(path);
 F = normalize(imresize3(F,[size(F,1) size(F,2) size(F,3)*resizeFactorZ]));
 if interactive
 tlvt(F)
 end
 
-%% [SET] Read volume to register
+fprintf(' done.\n')
 
-disp('read volume to register')
+%% [SET] Read volume to register
 
 %\\\SET
     imFolder = '/scratch/RiffleShuffle/Stacks/Dataset_B_1.55_2.45_Downsized';
@@ -43,27 +47,32 @@ disp('read volume to register')
 
 path = [imFolder '_Registered.tif'];
 
+fprintf(['Volume path: ' strrep(path,'\','\\') '\n'])
+fprintf('Reading and normalizing experimental volume...')
+
 M = normalize(volumeRead(path));
 
 if interactive
 tlvt(M)
 end
 
+fprintf(' done.\n')
 % bregmas increase from back to front
 % template has planes from front to back
 
 %% [SET] Read bregma values; crop template
 
-disp('read bregma values; crop template')
-% template
-b0 = -7.905; 
-b1 = 5.345;
-bregmas = linspace(b1,b0,size(F,3));
-
 %\\\SET
     b0 = 1.55; % smalest estimated bregma in dataset
     b1 = 2.45; % largest estimated bregma in dataset
 %///
+
+% Template bregma coordinates
+b0_t = -7.905; 
+b1_t = 5.345;
+bregmas = linspace(b1_t,b0_t,size(F,3));
+
+fprintf('Reading user-defined bregma values and cropping template...')
 
 bregmasAnnotated = linspace(b1,b0,size(M,3))';
 
@@ -92,7 +101,9 @@ subplot(1,2,2)
 graystackmontage(M), title('to register')
 end
 
-%% find out re-scaling factors
+fprintf(' done.\n')
+
+%% Find out re-scaling factors
 % divide length on data (image tool 2) by length on template (image tool 1)
 % set as parameters fx,fy on cell below
 
@@ -106,12 +117,12 @@ end
 
 %% [SET] Re-scale template to match scale of data
 
-disp('re-scale template to match scale of data')
-
 %\\\SET
     fx = 270/280; % horizontal direction scaling (obtained as instructed above)
     fy = 140/160; % vertical direction scaling (obtained as instructed above)
 %///
+
+fprintf('Resizing Allen template to match the scaling of experimental data...')
 
 RsubF = imresize3(subF,[fy*size(subF,1) fx*size(subF,2) size(subF,3)]);
 % imshow(RsubF(:,:,round(size(RsubF,3)/2))), imdistline
@@ -122,9 +133,10 @@ imtool(RsubF(:,:,round(size(RsubF,3)/2)))
 imtool(M(:,:,round(size(M,3)/2)))
 end
 
+fprintf(' done.\n')
+
 %% [SET] Optimal plane assignment
 
-disp('optimal plane assignment')
 imSubSeq = stack2list(M);
 imSeq = stack2list(RsubF);
 
@@ -139,6 +151,7 @@ imSeq = stack2list(RsubF);
     % maximum plane offset from initial guess based on equally spaced distribution
 %///
 
+fprintf('Assignment to optimal planes...')
 
 if interactive
 displayProgress = true;
@@ -147,10 +160,11 @@ optimalAssignmentIndices = dpMatchPlanes(imSubSeq,imSeq,scaleRange,vertDispRange
 T = array2table([bregmasAnnotated bregmas(optimalAssignmentIndices)],'VariableNames',{'orig_bregmas','assign_bregmas'});
 disp(T)
 end
+fprintf(' done.\n')
 
-%% transform planes, save results
+%% Transform planes, save results
 
-disp('transform planes, save results')
+fprintf('Transforming planes and saving results...')
 if interactive
 Z = zeros(size(imSeq{1},1),size(imSeq{1},2),3);
 R1 = [];
@@ -179,6 +193,7 @@ bregmaAssignmentArray = [(1:length(optimalAssignmentIndices))' optimalAssignment
 bregmaAssignmentTable = array2table(bregmaAssignmentArray,'VariableNames',{'dataset_index','atlas_index','bregmas_annotated','bregmas_assigned'});
 writetable(bregmaAssignmentTable,[imFolder '_Bregma_Assignment.csv']);
 end
+fprintf(' done.\n')
 
 %% edit (if needed)
 
