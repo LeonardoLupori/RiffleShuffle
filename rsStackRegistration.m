@@ -18,7 +18,7 @@ clear, clc
      % true: quantify spots
      % false: quantify diffuse signal
 
-    pathIn = 'C:\Users\Leonardo\Documents\MATLAB\wholeBrainPNN\RiffleShuffle_exampleDATA\Stacks\Dataset_B_1.55_2.45_Downsized';
+    pathIn = 'D:\PizzorussoLAB\proj_wholeBrainPNN\DATA\tiff8bit\RGB_ordered_channels\2_Downsized';
     % full path to _Downsized folder
 %///
 
@@ -280,7 +280,7 @@ maxSink = 100;
     % indices of images that need the axis of symmetry to be fixed; multiple indices separated by space
     % run with imIndices = [] if no adjustment is needed (to setup spots3 variable)
     % run with imIndices = 'all' if you want to process all the frames
-    imIndices = [1:3];
+    imIndices = 'all';
 %///
 
 if ischar(imIndices) && strcmpi(imIndices,'all')
@@ -371,7 +371,7 @@ maxSink = 100;
     % indices of images that need each half to be fixed independently; multiple indices separated by space
     % run with imIndices = [] if no adjustment is needed (to setup spots4 variable)
     % run with imIndices = 'all' if you want to process all the frames
-    imIndices = [1:10];
+    imIndices = [1,2,4,5,9];
 %///
 
 if ischar(imIndices) && strcmpi(imIndices,'all')
@@ -576,14 +576,18 @@ end
 if interactive
 
 %\\\SET
-    imIndices = [10]; % indices of images to adjust;
+    imIndices = 'all'; % indices of images to adjust;
     % for each index, adjusts corresponding image w.r.t. previous image
 %///
+
+if ischar(imIndices) && strcmpi(imIndices,'all')
+    imIndices = 2:nImages;
+end
 
 fprintf('[interactive] Manually adjusting global vertical registration...')
 
 for i = imIndices
-    T = verticalRegistrationTool(imadjust(S1(:,:,i)),imadjust(S1(:,:,i-1)),'MaxShift',300);
+    T = verticalRegistrationTool_2(imadjust(S1(:,:,i)),imadjust(S1(:,:,i-1)),'MaxShift',300);
     tforms{i-1} = T.Tform;
 end
 save([pathOut filesep 'tforms.mat'],'tforms');
@@ -594,9 +598,9 @@ end
 
 fprintf('Saving: images, tables...')
 
-pfpb = pfpbStart(nImages);
-parfor i = 1:nImages
-    pfpbUpdate(pfpb);
+% pfpb = pfpbStart(nImages);
+for i = 1:nImages
+%     pfpbUpdate(pfpb);
     imwrite(TS0(:,:,i), [pathOut filesep sprintf('I%03d_C1.tif',i)]);
     imwrite(TS1(:,:,i), [pathOut filesep sprintf('I%03d_C.png',i)]);
     imwrite(TS2(:,:,i), [pathOut filesep sprintf('I%03d_M.png',i)]);
@@ -643,7 +647,7 @@ for i = 1:length(l)
     % dataset: 0.645 um/pixel
     % allen atlas: 25 um/pixel
     % empirical scale: 10 (compensates for previous downsizing in rsPreProcessing.m)
-    I = imresize(I,10*0.645/25);
+    I = imresize(I,10*0.548/25);
     % affects section 'read points / masks, transform (similarity)' in rsPlaneAssignment.m
     % affects section 'read, resize template' in rsPlaneAssignment.m
 %///

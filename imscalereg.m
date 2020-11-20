@@ -1,5 +1,6 @@
 function [TMoving,c2,tform] = imscalereg(Moving,Fixed,rxs,rys,dys)
 
+% Normalize input images
 I = Moving/sum(Moving(:));
 J = Fixed/sum(Fixed(:));
 
@@ -7,7 +8,11 @@ J = Fixed/sum(Fixed(:));
 % rys = 0.5:0.1:1.5;
 % dys = -10:10;
 
+% Matrix holding the results
 rs = zeros(length(rxs)*length(rys)*length(dys),4);
+
+% Fill the first three columns of the result matrix with x,y and z
+% displacement
 count = 0;
 for i = 1:length(rxs)
     for j = 1:length(rys)
@@ -17,6 +22,7 @@ for i = 1:length(rxs)
         end
     end
 end
+
 
 tforms = cell(1,size(rs,1));
 for i = 1:size(rs,1)
@@ -28,6 +34,7 @@ for i = 1:size(rs,1)
     mp = size(J)/2;
     T2 = [eye(2) [0; 0]; [mp(2) mp(1) 1]]';
     tform = affine2d((T2*R*T1)');
+    
     tforms{i} = tform;
     TI = imwarp(I,tform,'OutputView',imref2d(size(J)));
     rs(i,4) = (corr2(TI,J)+1)/2;

@@ -1,6 +1,11 @@
 function [fplist,fnlist,fblist] = listfiles(folderpath, token)
+% [fplist,fnlist,fblist] = listfiles(folderpath, token)
+% 
+% 
 % returns cell arrays with the filepaths/filenames of files ending with 'fileextension' in folder 'folderpath'
 % token examples: '.tif', '.png', '.txt'
+% 
+% 
 % fplist: list of full paths
 % fnlist: list of file names
 % fblist: list of file sizes in bytes

@@ -6,7 +6,7 @@ clear, clc
     interiorContourDependence = true;
     % true: interior morphing depends on contour morphing; false: interior content is matched directly to atlas
     
-    quantSpots = true;
+    quantSpots = false;
     % true: quantify spots; false: quantify diffuse signal
     
     interactive = true;
@@ -17,7 +17,7 @@ clear, clc
 %% [SET] Read and resize the Allen Institute template
 
 %\\\SET
-    path = '/scratch/RiffleShuffle/SupportFiles/template.tif';
+    path = 'C:\Users\Leonardo\Documents\MATLAB\wholeBrainPNN\RiffleShuffle_exampleDATA\SupportFiles\template.tif';
     % full path to template.tif
 
     resizeFactorZ = 0.5;
@@ -41,7 +41,7 @@ fprintf(' done.\n')
 %% [SET] Read volume to register
 
 %\\\SET
-    imFolder = '/scratch/RiffleShuffle/Stacks/Dataset_B_1.55_2.45_Downsized';
+    imFolder = 'D:\PizzorussoLAB\proj_wholeBrainPNN\DATA\tiff8bit\RGB_ordered_channels\2_Downsized';
     % full path to _Downsized folder
 %///
 
@@ -63,9 +63,20 @@ fprintf(' done.\n')
 %% [SET] Read bregma values; crop template
 
 %\\\SET
-    b0 = 1.55; % smalest estimated bregma in dataset
-    b1 = 2.45; % largest estimated bregma in dataset
+
+    manualAssignmentPath = 'D:\PizzorussoLAB\proj_wholeBrainPNN\DATA\tiff8bit\images_classification.xlsx';
+    macroArea = 2;
+%     b0 = -5.692315789; % smallest estimated bregma in dataset
+%     b1 = -0.650578947; % largest estimated bregma in dataset
+%     indices = [77,88,93,97,101,107,111,116,119,121,123,125,127,132,134,138,...
+%         147,152,157,164,169,173,177,179,182,186,193,197,199,206,209,217,220,222,225,227,236,238];
+    
 %///
+
+% Load putative bregma values from table
+sliceTab = readtable(manualAssignmentPath);
+indices = sliceTab.candidateBregma(sliceTab.macroArea==macroArea);
+indices = round(indices* resizeFactorZ);
 
 % Template bregma coordinates
 b0_t = -7.905; 
@@ -74,52 +85,78 @@ bregmas = linspace(b1_t,b0_t,size(F,3));
 
 fprintf('Reading user-defined bregma values and cropping template...')
 
-bregmasAnnotated = linspace(b1,b0,size(M,3))';
+% Added by LEO & VALE
+% ---------
+bregmasAnnotated = bregmas(indices)';
+b1 = bregmasAnnotated(1);
+b0 = bregmasAnnotated(end);
+% ---------
+% bregmasAnnotated = linspace(b1,b0,size(M,3))';
 
-disp([b0 b1])
+% indices of template z-planes to which the most anterior(s10) and most 
+% posterior(s00) slices of the dataset map
 [~,s00] = min(abs(bregmas-b0));
 [~,s10] = min(abs(bregmas-b1));
 
+% Extra planes as 10% of the total range of the dataset
 nExtraPlanes = round(0.1*(s00-s10+1));
+% Corrects s00 and s10 for border effects
 s0 = min(s00+nExtraPlanes,size(F,3));
 s1 = max(s10-nExtraPlanes,1);
 
+% Update number of extra planes after correction for border effect
 nExtraLeft = s10-s1;
 nExtraRight = s0-s00;
 
-subF = normalize(imgaussfilt3(imgradient3(F(:,:,s1:s0)),3));
+% Subset of interest of the template volume
+subsetVolume = F(:,:,s1:s0);
 bregmas = bregmas(s1:s0)';
 
-onset = nExtraLeft+1;
-offset = size(subF,3)-nExtraRight;
-initialMatch = round(linspace(onset,offset,size(M,3)));
+% Filter the subset to highlight borders
+subF = normalize(imgaussfilt3(imgradient3(subsetVolume),3));
+
+% onset = nExtraLeft+1;
+% offset = size(subF,3)-nExtraRight;
+% initialMatch = round(linspace(onset,offset,size(M,3)));
+
+% Added by LEO & VALE
+% ---------
+initialMatch = indices-s1+1;
 
 if interactive
-subplot(1,2,1)
-graystackmontage(subF), title('template')
-subplot(1,2,2)
-graystackmontage(M), title('to register')
+    figureQSS
+    subplot(1,2,1)
+    graystackmontage(subF), title('template')
+    subplot(1,2,2)
+    graystackmontage(M), title('to register')
 end
 
 fprintf(' done.\n')
 
-%% Find out re-scaling factors
+%% [SET] Find out re-scaling factors
 % divide length on data (image tool 2) by length on template (image tool 1)
 % set as parameters fx,fy on cell below
 
-% imshow(subF(:,:,round(size(subF,3)/2))), imdistline
-% figure, pause(0.5)
-% imshow(M(:,:,round(size(M,3)/2))), imdistline
+%\\\SET
+    imIndex = 15;
+%///
+
+
+% if interactive
+% imtool(subF(:,:,round(size(subF,3)/2)))
+% imtool(M(:,:,round(size(M,3)/2)))
+% end
+
 if interactive
-imtool(subF(:,:,round(size(subF,3)/2)))
-imtool(M(:,:,round(size(M,3)/2)))
+imtool(subF(:,:,initialMatch(imIndex)))
+imtool(M(:,:,imIndex))
 end
 
 %% [SET] Re-scale template to match scale of data
 
 %\\\SET
-    fx = 270/280; % horizontal direction scaling (obtained as instructed above)
-    fy = 140/160; % vertical direction scaling (obtained as instructed above)
+    fx = 250/277; % horizontal direction scaling (data/template)
+    fy = 173/210; % vertical direction scaling (data/template)
 %///
 
 fprintf('Resizing Allen template to match the scaling of experimental data...')
@@ -129,16 +166,16 @@ RsubF = imresize3(subF,[fy*size(subF,1) fx*size(subF,2) size(subF,3)]);
 % figure, pause(0.5)
 % imshow(M(:,:,round(size(M,3)/2))), imdistline
 if interactive
-imtool(RsubF(:,:,round(size(RsubF,3)/2)))
-imtool(M(:,:,round(size(M,3)/2)))
+imtool(RsubF(:,:,initialMatch(imIndex)))
+imtool(M(:,:,imIndex))
 end
 
 fprintf(' done.\n')
 
 %% [SET] Optimal plane assignment
 
-imSubSeq = stack2list(M);
-imSeq = stack2list(RsubF);
+imSubSeq = stack2list(M);       % Dataset
+imSeq = stack2list(RsubF);      % Allen template Volume
 
 %\\\SET
     scaleRange = 0.9:0.05:1.1;
@@ -147,11 +184,11 @@ imSeq = stack2list(RsubF);
     vertDispRange = -10:2:10;
     % range of vertical displacements to test during optimal plane assignment
     
-    maxShift = nExtraPlanes;
+    maxShift = 2;  % nExtraPlanes
     % maximum plane offset from initial guess based on equally spaced distribution
 %///
 
-fprintf('Assignment to optimal planes...')
+fprintf('Assignment to optimal planes...\n')
 
 if interactive
 displayProgress = true;
@@ -164,15 +201,21 @@ fprintf(' done.\n')
 
 %% Transform planes, save results
 
-fprintf('Transforming planes and saving results...')
+fprintf('Transforming planes...')
+
+
 if interactive
-Z = zeros(size(imSeq{1},1),size(imSeq{1},2),3);
-R1 = [];
-count = 0;
-tforms = cell(1,length(imSubSeq));
-TimSubSeq = cell(1,length(imSubSeq));
+
+% Dataset
+% ---------------------------------------
+Z = zeros(size(imSeq{1},1),size(imSeq{1},2),3); % Default black image    
+R1 = [];        % Matrix to hold wide image of plane assignments
+count = 0;      % Num of planes currently assigned
+tforms = cell(1,length(imSubSeq));              %  Transform objects
+TimSubSeq = cell(1,length(imSubSeq));           % Transformed Images
+
+% Iteratively build the "dataset" portion of the wide image
 for i = 1:length(imSeq)
-    disp([i length(imSeq)])
     if min(abs(optimalAssignmentIndices-i)) == 0
         count = count+1;
         [TI,~,tform] = imscalereg(imSubSeq{count},imSeq{i},scaleRange,scaleRange,vertDispRange);
@@ -183,14 +226,23 @@ for i = 1:length(imSeq)
         R1 = [R1 Z];
     end
 end
+
+% Template
+% ---------------------------------------
 R2 = [];
+% Iteratively build the "template" portion of the wide image
 for i = 1:length(imSeq)
     R2 = [R2 insertText(imSeq{i},[0 0],sprintf('%d: %.02f',i,bregmas(i)))];
 end
 
+% Export the wide image as a tiff file
+fprintf(' done. Saving results...')
 imwrite([R1; R2],[imFolder '_Bregma_Assignment.tif']);
+
+% Export plane assignment to a CSV file
 bregmaAssignmentArray = [(1:length(optimalAssignmentIndices))' optimalAssignmentIndices bregmasAnnotated bregmas(optimalAssignmentIndices)];
-bregmaAssignmentTable = array2table(bregmaAssignmentArray,'VariableNames',{'dataset_index','atlas_index','bregmas_annotated','bregmas_assigned'});
+bregmaAssignmentTable = array2table(bregmaAssignmentArray,...
+    'VariableNames',{'dataset_index','atlas_index','bregmas_annotated','bregmas_assigned'});
 writetable(bregmaAssignmentTable,[imFolder '_Bregma_Assignment.csv']);
 end
 fprintf(' done.\n')
@@ -244,37 +296,41 @@ for i = 1:length(tforms)
 end
 end
 
-%% read, transform masks / quant images
+%% Read and transform masks and quantification images (*_M and *_CQ)
 
-disp('read, transform masks / quant images')
+fprintf('Reading and transforming masks and quantification images...')
+
 pathPts = [imFolder '_Registered'];
 nImages = length(imSubSeq);
 tMasks = cell(1,nImages);
 tQImgs = cell(1,nImages);
+
 for i = 1:nImages
-    idx = i;
     
-    Mask = imread([pathPts filesep sprintf('I%03d_M.png',idx)]);
-    QImg = im2double(imread([pathPts filesep sprintf('I%03d_CQ.tif',idx)]));
+    % Load images
+    Mask = imread([pathPts filesep sprintf('I%03d_M.png',i)]);
+    QImg = im2double(imread([pathPts filesep sprintf('I%03d_CQ.tif',i)]));
     
+    % Transform masks
     I = imSubSeq{i};
     Mask = imresize(Mask,size(I),'nearest');
     TMask = imwarp(Mask,tforms{i},'OutputView',imref2d(size(TI))) > 0;
     tMasks{i} = TMask;
     
+    % Transform quantification images
     QImg = imresize(QImg,size(I));
     TQImg = imwarp(QImg,tforms{i},'OutputView',imref2d(size(TI)));
     tQImgs{i} = TQImg;
     
     if interactive
-%     switchBetween(imadjust(TimSubSeq{i}),tMasks{i})
-    imshowpair(imadjust(TimSubSeq{i}),tMasks{i}), pause(0.1)
+%         imshow(QImg)
+        imshowpair(imadjust(TimSubSeq{i}),tMasks{i}), pause(0.2)
     end
 end
 if interactive
     close all
 end
-
+fprintf(' done.\n')
 
 %% prepare to register planes
 
@@ -398,37 +454,35 @@ end
 
 %% [SET] Read points / transform (similarity)
 
-disp('read points / transform (similarity)')
+fprintf('Reading points coordinates from CSV and transforming (similarity)...')
 txys = cell(1,nImages);
-for i = 1:nImages
-    idx = i;
-    
-    xy = table2array(readtable([pathPts filesep sprintf('I%03d.csv',idx)]));
-    
+for i = 1:nImages    
+    xy = table2array(readtable([pathPts filesep sprintf('I%03d.csv',i)]));
 %\\\SET
     % scale factor
     % see 'write volume for registration to Allen Institute atlas' session in rsStackRegistration.m
-    xy = xy*10*0.645/25;
+    xy = xy*10*0.548/25;
 %///
     
     txy = transformSpots(xy,tforms{i});
     txys{i} = txy;
     
     if interactive
-    subplot(1,2,1)
-    imshow(imadjust(imSubSeq{i})), hold on
-    plot(xy(:,1),xy(:,2),'.'), hold off
-    subplot(1,2,2)
-    imshow(imadjust(TimSubSeq{i})), hold on
-    plot(txy(:,1),txy(:,2),'.'), hold off
-    pause(0.1)
+        subplot(1,2,1)
+        imshow(imadjust(imSubSeq{i})), hold on
+        plot(xy(:,1),xy(:,2),'.'), hold off
+        subplot(1,2,2)
+        imshow(imadjust(TimSubSeq{i})), hold on
+        plot(txy(:,1),txy(:,2),'.'), hold off
+        pause(0.1)
     end
 end
+fprintf(' done.\n')
 close all
 
 %% Transform points / masks (non-linear)
 
-disp('transform points / masks / quant images (non-linear)')
+fprintf('Transforming points, masks, quantification images (non-linear)...')
 % figureQSS
 ttxys = cell(1,nImages);
 ttMasks = cell(1,nImages);
@@ -457,35 +511,36 @@ for i = 1:nImages
     ttxys{i} = ttxy;
     
     if interactive
-    subplot(3,2,1)
-    imshow(imadjust(I)), hold on
-    plot(txy(:,1),txy(:,2),'.'), hold off
-    subplot(3,2,2)
-    imshow(imadjust(TI)), hold on
-    plot(ttxy(:,1),ttxy(:,2),'.'), hold off
-    subplot(3,2,3)
-    imshow(TMask), hold on
-    plot(txy(:,1),txy(:,2),'.'), hold off
-    subplot(3,2,4)
-    imshow(TTMask), hold on
-    plot(ttxy(:,1),ttxy(:,2),'.'), hold off
-    subplot(3,2,5)
-    imshow(imadjust(TQImg)), hold on
-    plot(txy(:,1),txy(:,2),'.'), hold off
-    subplot(3,2,6)
-    imshow(imadjust(TTQImg)), hold on
-    plot(ttxy(:,1),ttxy(:,2),'.'), hold off
-    pause(0.1)
+        subplot(3,2,1)
+        imshow(imadjust(I)), hold on
+        plot(txy(:,1),txy(:,2),'.'), hold off
+        subplot(3,2,2)
+        imshow(imadjust(TI)), hold on
+        plot(ttxy(:,1),ttxy(:,2),'.'), hold off
+        subplot(3,2,3)
+        imshow(TMask), hold on
+        plot(txy(:,1),txy(:,2),'.'), hold off
+        subplot(3,2,4)
+        imshow(TTMask), hold on
+        plot(ttxy(:,1),ttxy(:,2),'.'), hold off
+        subplot(3,2,5)
+        imshow(imadjust(TQImg)), hold on
+        plot(txy(:,1),txy(:,2),'.'), hold off
+        subplot(3,2,6)
+        imshow(imadjust(TTQImg)), hold on
+        plot(ttxy(:,1),ttxy(:,2),'.'), hold off
+        pause(0.1)
     end
 end
+fprintf(' done.\n')
 close all
 
 %% [SET] read / crop annotations / re-scale / convert to list
 
-disp('read / crop annotations / re-scale / convert to list')
+fprintf('Reading, cropping and re-scaling annotations...')
 
 %\\\SET
-    atlasLabelsPath = '/scratch/RiffleShuffle/SupportFiles/annotationsUInt32.tif';
+    atlasLabelsPath = 'C:\Users\Leonardo\Documents\MATLAB\wholeBrainPNN\RiffleShuffle_exampleDATA\SupportFiles\annotationsUInt32.tif';
     % full path to annotationsUInt32.tif
 %///
 
@@ -495,10 +550,12 @@ maxA = max(A(:));
 subA = A(:,:,s1:s0);
 RsubA = imresize3(subA,[fy*size(subA,1) fx*size(subA,2) size(subA,3)],'nearest');
 annotSeq = stack2list(RsubA);
+fprintf(' done.')
 
 %% build point-counting / signal quant planes
 
 pcp = cell(1,nImages);
+
 for i = 1:nImages
     P = imSeq{optimalAssignmentIndices(i)};
     if quantSpots
@@ -531,7 +588,7 @@ close all
 disp('count')
 
 %\\\
-    pathRegIDs = '/scratch/RiffleShuffle/SupportFiles/RegionIDs.csv';
+    pathRegIDs = 'C:\Users\Leonardo\Documents\MATLAB\wholeBrainPNN\RiffleShuffle_exampleDATA\SupportFiles\RegionIDs.csv';
     % full path to RegionIDs.csv
 %///
 
@@ -573,24 +630,25 @@ end
 path = [imFolder sprintf('_Quant_%s.csv',qType)];
 writetable(T,path);
 
-%% [SET] Visualize quantization
+%% [SET] Visualize quantification
 
 disp('visualize quantization')
 
 %\\\SET
-    regionID = 961;
+    regionID = 972;
 %///
 
 pcpStackN = normalize(pcpStack);
 maskA = subRsubA == regionID;
-maskAB = maskA & not(imerode(maskA,strel('sphere',1)));
+maskAB = maskA;
+% maskAB = maskA & not(imerode(maskA,strel('sphere',1)));
 
-V = cat(4,maskAB,normalize(pcpStackN));
-tiffwriteimj(V,[imFolder sprintf('_HeatMap_%s_%d.tif',qType,regionID)]);
+% V = cat(4,maskAB,normalize(pcpStackN));
+% tiffwriteimj(V,[imFolder sprintf('_HeatMap_%s_%d.tif',qType,regionID)]);
 
 if interactive
-pcpStackN(maskAB) = 1;
-tlvt(pcpStackN)
+    pcpStackN(maskAB) = 1;
+    tlvt(pcpStackN)
 end
 
 disp('done')

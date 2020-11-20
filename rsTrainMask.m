@@ -1,11 +1,11 @@
 clear, clc
 
-p = '/scratch/RiffleShuffle/DataForPC/Mask';
+p = 'D:\PizzorussoLAB\proj_wholeBrainPNN\DATA\ML_randomForest\training_01\mask_PV';
 modelM = pixelClassifierTrain(p);
 
 %% save model
 
-save('/scratch/RiffleShuffle/SupportFiles/modelM.mat','modelM');
+save('D:\PizzorussoLAB\proj_wholeBrainPNN\DATA\ML_randomForest\training_01/modelM_PV.mat','modelM');
 
 %%
 

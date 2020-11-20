@@ -6,14 +6,14 @@ clear, clc
     % Full path to folder containing images.
     % Multichannel images should be split into separate channels and named
     % with a trailing "_C1" and "_C2" accordingly to the channel
-    pathIn = '/scratch/RiffleShuffle/Stacks/Dataset_B_1.55_2.45';
+    pathIn = 'D:\PizzorussoLAB\proj_wholeBrainPNN\DATA\tiff8bit\RGB_ordered_channels\2';
 
     % Path to contour and mask machine learning models
-    pathModelC = '/scratch/RiffleShuffle/SupportFiles/modelC.mat';
-    pathModelM = '/scratch/RiffleShuffle/SupportFiles/modelM.mat';
+    pathModelC = 'D:\PizzorussoLAB\proj_wholeBrainPNN\DATA\ML_randomForest\training_01\modelC.mat';
+    pathModelM = 'D:\PizzorussoLAB\proj_wholeBrainPNN\DATA\ML_randomForest\training_01\modelM_PV.mat';
 
     % If to quantify spots (otherwise quantifies diffuse signal)
-    quantSpots = true; 
+    quantSpots = false; 
 %///
 
 fprintf([repmat('*',1,20) '\n'])
@@ -22,8 +22,8 @@ fprintf(['Raw images path: ' strrep(pathIn,'\','\\') '\n'])
 fprintf(['Contour model (Random Forest) path: ' strrep(pathModelC,'\','\\') '\n'])
 fprintf(['Mask model (Random Forest) path: ' strrep(pathModelM,'\','\\') '\n'])
 
-l1 = listfiles(pathIn,'_C1.tif');   % First channel (contour extimation)
-l2 = listfiles(pathIn,'_C2.tif');   % Second channel (quantification)
+l1 = listfiles(pathIn,'_C0.tif');   % First channel (contour extimation)
+l2 = listfiles(pathIn,'_C1.tif');   % Second channel (quantification)
 load(pathModelC);
 load(pathModelM);
 
@@ -165,8 +165,10 @@ for i = 1:length(l1)
     Q = imread([pathOut filesep sprintf('I%03d_CQ.tif',i)]);
     M = imread([pathOut filesep sprintf('I%03d_M.png',i)]);
     C = imread([pathOut filesep sprintf('I%03d_C.png',i)]);
-    A = table2array(readtable([pathOut filesep sprintf('I%03d.csv',i)]));
-    
+    if quantSpots
+        A = table2array(readtable([pathOut filesep sprintf('I%03d.csv',i)]));
+    end
+        
     subplot(1,4,1)
     titleStr = sprintf('Original-(%u/%u)', i, length(l1));
     imshow(imadjust(I)), title(titleStr)
